@@ -18,7 +18,7 @@ pgf_with_latex = {                      # setup matplotlib to use latex for outp
     "legend.fontsize": 8,               # Make the legend/label fonts a little smaller
     "xtick.labelsize": 8,
     "ytick.labelsize": 8,
-    "figure.figsize": (4.00, 3.00),     # default fig size of 0.9 textwidth
+    "figure.figsize": (3.00, 2.00),     # default fig size of 0.9 textwidth
     "pgf.preamble": r'\usepackage{amsmath},\usepackage{amsthm},\usepackage{amssymb},\usepackage{mathspec},\renewcommand{\familydefault}{\sfdefault},\usepackage[italic]{mathastext}'
     }
 mpl.rcParams.update(pgf_with_latex)
@@ -55,6 +55,7 @@ def read_plot_mesh(file_path):
     plt.xlabel('X')
     plt.ylabel('Y')
     plt.axis("off")
+    plt.savefig('figs/malla.pdf')
     plt.show()
 
     return pts, tris_planet,tris
@@ -154,7 +155,7 @@ def compute_potential_field(pts, tris_planet, area_tri):
     return potential, field
 
 
-def plot_potential_field(pts, tris, potential, field):
+def plot_potential_field_star(pts, tris, potential, field):
     """
     Grafica el potencial y el campo eléctrico para una malla dada.
 
@@ -168,14 +169,105 @@ def plot_potential_field(pts, tris, potential, field):
 
     # Graficar el potencial
     plt.figure()
-    plt.tricontourf(x, y, tris, potential,levels=100)
+    plt.tricontourf(x, y, tris, potential,levels=20)
     plt.axis("off")
+    plt.axis("image")
     plt.colorbar()
+    plt.savefig('figs/potencial_star.pdf')
+    
+    
+
+    # Graficar la magnitud del campo eléctrico
+    plt.figure()
+    plt.tricontourf(x, y, tris, np.linalg.norm(field, axis=1), 12, cmap="magma", zorder=4,levels=20)
+    plt.colorbar()
+    plt.axis("off")
+    plt.axis("image")
+    plt.savefig('figs/campo_star.pdf')
+    plt.axis("image")
+
+def plot_potential_field_circle(pts, tris, potential, field):
+    """
+    Grafica el potencial y el campo eléctrico para una malla dada.
+
+    Parameters:
+    pts (numpy.ndarray): Array de puntos de la malla.
+    tris (numpy.ndarray): Array de triángulos de la malla.
+    potential (numpy.ndarray): Array de potenciales calculados.
+    field (numpy.ndarray): Array de campos eléctricos calculados.
+    """
+    x, y, _ = pts.T
+
+    # Graficar el potencial
+    plt.figure()
+    plt.tricontourf(x, y, tris, potential,levels=20)
+    plt.axis("off")
+    plt.axis("image")
+    plt.colorbar()
+    plt.savefig('figs/potencial_circle.pdf')
     plt.axis("image")
 
     # Graficar la magnitud del campo eléctrico
     plt.figure()
-    plt.tricontourf(x, y, tris, np.linalg.norm(field, axis=1), 12, cmap="magma", zorder=4,levels=100)
+    plt.tricontourf(x, y, tris, np.linalg.norm(field, axis=1), 12, cmap="magma", zorder=4,levels=20)
     plt.colorbar()
     plt.axis("off")
     plt.axis("image")
+    plt.savefig('figs/campo_circle.pdf')
+    plt.axis("image")
+
+
+def plot_point_source(radius, resolution):
+    """
+    Grafica el potencial de Green en 2D
+    y la magnitud del campo eléctrico para una carga puntual.
+
+    Parameters:
+    radius (float): El radio de la máscara.
+    resolution (int): La resolución de la malla.
+    """
+    # Crear una malla de puntos en un rango de -radius a radius
+    y, x = radius * np.mgrid[-1:1:complex(0, resolution), -1:1:complex(0, resolution)]
+
+    # Definir el punto central
+    pt_x = 0
+    pt_y = 0
+
+    # Calcular la distancia desde el punto central
+    r = np.sqrt((pt_x - x)**2 + (pt_y - y)**2)
+
+    # Aplicar la máscara circular
+    mask = r <= radius
+
+    # Calcular el potencial de Green en 2D
+    G = green_pot_2d(r)
+    # Remover valores mayores al radio especificado
+    G[~mask] = np.nan  
+
+    # Calcular el campo de Green en 2D
+    vec = np.array([-x, -y])
+    unit_vec = vec / r
+    Ex, Ey = green_field_2d(r, unit_vec)
+    field = np.stack((Ex, Ey), axis=-1)
+    # Remover valores mayores al radio especificado
+    field[~mask] = np.nan  
+
+    # Graficar el potencial de Green
+    plt.figure()
+    plt.contourf(x, y, G, levels=20)
+    plt.colorbar()
+    plt.axis("image")
+    plt.axis("off")
+    plt.savefig('figs/potencial_puntual.pdf')
+    plt.show()
+
+    # Graficar la magnitud del campo eléctrico
+    plt.figure()
+    plt.contourf(x, y, np.linalg.norm(field, axis=-1), levels=20, cmap="magma")
+    plt.colorbar()
+    plt.axis("image")
+    plt.axis("off")
+    plt.savefig('figs/campo_puntual.pdf')
+    plt.show()
+
+
