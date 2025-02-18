@@ -50,4 +50,5 @@ Plane Surface(2) = {2, 1};
 Physical Surface(1) = {1};
 Physical Surface(2) = {2};
 
- 
+Plane Surface(2) = {2, 1};     // Outside the star
+Physical Surface(2) = {2};     // Outside the star

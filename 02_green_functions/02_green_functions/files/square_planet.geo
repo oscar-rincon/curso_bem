@@ -11,10 +11,10 @@ radius = 5.0;
 lc = 1;
 
 // Points
-Point(1) = {-length/2, -length/2, 0, 0.05};
-Point(2) = {length/2, -length/2, 0, 0.05};
-Point(3) = {length/2, length/2, 0, 0.05};
-Point(4) = {-length/2, length/2, 0, 0.05};
+Point(1) = {-length/2, -length/2, 0, 0.1};
+Point(2) = {length/2, -length/2, 0, 0.1};
+Point(3) = {length/2, length/2, 0, 0.1};
+Point(4) = {-length/2, length/2, 0, 0.1};
 Point(5) = {-radius * Cos(Pi/4), -radius * Cos(Pi/4), 0, lc};
 Point(6) = {radius * Cos(Pi/4), -radius * Cos(Pi/4), 0, lc};
 Point(7) = {radius * Cos(Pi/4), radius * Cos(Pi/4), 0, lc};
