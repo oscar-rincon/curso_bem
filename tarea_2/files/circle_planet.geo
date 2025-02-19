@@ -1,6 +1,6 @@
 // Parameters
 n = 20;                 // Número de puntos para el círculo interno
-radius_inner = 0.4;     // Radio del círculo interno
+radius_inner = 1.0;     // Radio del círculo interno
 radius_outer = 5.0;     // Radio del círculo exterior
 
 // Ángulo base para el círculo interno
@@ -11,7 +11,7 @@ Point(1) = {0, 0, 0, 1.0};
 
 // Puntos del círculo interior
 For i In {1:n}
-    Point(1+i) = {radius_inner * Cos((i-1)*theta), radius_inner * Sin((i-1)*theta), 0, 1.0};
+    Point(1+i) = {radius_inner * Cos((i-1)*theta), radius_inner * Sin((i-1)*theta), 0, 0.2};
 EndFor
 
 // Crear el círculo interior usando arcos

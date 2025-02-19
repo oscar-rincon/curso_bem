@@ -4,6 +4,8 @@ from numpy.linalg import norm, solve
 import matplotlib.pyplot as plt
 import meshio
 import matplotlib as mpl
+from matplotlib.ticker import FormatStrFormatter
+import numba
 
 # Configuración de LaTeX para matplotlib
 pgf_with_latex = {                      # setup matplotlib to use latex for output
@@ -24,12 +26,13 @@ pgf_with_latex = {                      # setup matplotlib to use latex for outp
 mpl.rcParams.update(pgf_with_latex)
 
 
-def read_plot_mesh(file_path):
+def read_plot_mesh(file_path, save_path='figs/malla.pdf'):
     """
     Lee un archivo de malla, extrae los puntos y triángulos, y grafica la malla.
 
     Parameters:
     file_path (str): La ruta del archivo de malla a leer.
+    save_path (str): La ruta del archivo donde se guardará la gráfica.
 
     Returns:
     tuple: Una tupla que contiene:
@@ -50,15 +53,17 @@ def read_plot_mesh(file_path):
     
     # Graficar la malla
     plt.figure()
-    plt.triplot(x, y, tris, lw=0.2)
+    plt.triplot(x, y, tris, lw=0.1)
+    plt.triplot(x, y, tris_planet, lw=0.1)
     plt.axis("image")
     plt.xlabel('X')
     plt.ylabel('Y')
     plt.axis("off")
-    plt.savefig('figs/malla.pdf')
+    plt.savefig(save_path)
     plt.show()
 
-    return pts, tris_planet,tris
+    return pts, tris_planet, tris
+
 
 def green_pot_2d(r):
     """Green function for Laplace equation
@@ -117,7 +122,7 @@ def area_tri(coords):
 
 
 
-def compute_potential_field(pts, tris_planet, area_tri):
+def compute_potential_field(pts, tris_planet):
     """
     Calcula el potencial y el campo eléctrico para una malla dada.
 
@@ -169,10 +174,10 @@ def plot_potential_field_star(pts, tris, potential, field):
 
     # Graficar el potencial
     plt.figure()
-    plt.tricontourf(x, y, tris, potential,levels=20)
+    contour = plt.tricontourf(x, y, tris, potential, levels=20)
     plt.axis("off")
     plt.axis("image")
-    plt.colorbar()
+    cbar = plt.colorbar(contour, format=FormatStrFormatter('%.2f'))
     plt.savefig('figs/potencial_star.pdf')
     
     
