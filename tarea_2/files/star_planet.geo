@@ -1,71 +1,61 @@
-// Parameters
-n = 5;
-r_max = 1;
-r_min = 0.4;
-radius = 5.0;
+// Parámetros
+n = 5;                // Número de vértices de la estrella
+r_max = 1;            // Radio máximo de la estrella
+r_min = 0.4;          // Radio mínimo de la estrella
+radius = 5.0;         // Radio del círculo exterior
 
-// Base angle
+// Ángulo base para los vértices de la estrella
 theta = 2 * Pi / (2 * n);
 
-// First point at the positive y-axis (tip up)
+// Primer punto en el eje y positivo (punta hacia arriba)
 Point(1) = {r_max * Cos(Pi/2), r_max * Sin(Pi/2), 0, 0.1};
 
-// Calculate the other points
+// Calcular los otros puntos de la estrella
 For i In {1:n}
+    // Puntos interiores de la estrella
     Point(2*i) = {r_min * Cos(Pi/2 + (2*i-1)*theta), r_min * Sin(Pi/2 + (2*i-1)*theta), 0, 0.1};
+    
+    // Puntos exteriores de la estrella
     Point(2*i+1) = {r_max * Cos(Pi/2 + 2*i*theta), r_max * Sin(Pi/2 + 2*i*theta), 0, 0.1};
 EndFor
 
-
-// Rest of the outer circle points
-//For i In {1:n}
-//    Point(2*n+2+i) = {radius * Cos(Pi/2 + 2*i*theta), radius * Sin(Pi/2 + 2*i*theta), 0, 1};
-//EndFor
-
-// Connect points to form the star
-For i In {1:n}
-    Line(i) = {2*i-1, 2*i};           // Inner lines of the star
-    Line(n+i) = {2*i, 2*i+1};          // Outer lines of the star
-EndFor
-Line(2*n+2) = {2*n, 1};              // Close the star loop
-
-
-Line Loop(1) = {1, n+1, 2, n+2, 3, n+3, 4, n+4, 5, n+7}; // Star interior
- 
-
-// Surfaces
-Plane Surface(1) = {1};        // Inside the star
-
-// Physical groups
-Physical Surface(1) = {1};     // Inside the star
-
-
-// Center of the circle
+// Centro del círculo
 Point(2*n+2) = {0, 0, 0, 1.0};
 
-
-// Rest of the outer circle points
+// Puntos del círculo exterior
 For i In {1:n}
     Point(2*n+2+i) = {radius * Cos(Pi/2 + 2*i*theta), radius * Sin(Pi/2 + 2*i*theta), 0, 1};
 EndFor
 
-// Create the circles iteratively
+// Conectar los puntos para formar la estrella
+For i In {1:n}
+    Line(i) = {2*i-1, 2*i};          // Líneas internas de la estrella
+    Line(n+i) = {2*i, 2*i+1};        // Líneas externas de la estrella
+EndFor
+
+// Cerrar el lazo de la estrella
+Line(2*n+2) = {2*n, 1};             
+
+// Bucle de líneas para la parte interior de la estrella
+Line Loop(1) = {1, n+1, 2, n+2, 3, n+3, 4, n+4, 5, n+7}; // Interior de la estrella
+
+// Crear la superficie dentro de la estrella
+Plane Surface(1) = {1};        // Dentro de la estrella
+Physical Surface(1) = {1};     // Superficie física dentro de la estrella
+
+// Crear los círculos externos
 For i In {1:n}
     If (i < n)
-        Circle(2*n+2+i) = {2*n+2+i, 2*n+2, 2*n+2+1+i};
+        Circle(2*n+2+i) = {2*n+2+i, 2*n+2, 2*n+2+1+i};  // Círculos conectados
     Else
-        // Last element wraps around to the first point
-        Circle(2*n+2+i) = {2*n+2+1+i-1, 2*n+2, 2*n+2+1};
+        // El último elemento conecta con el primero
+        Circle(2*n+2+i) = {2*n+2+1+i-1, 2*n+2, 2*n+2+1};  
     EndIf
 EndFor
 
-Line Loop(2) = {2*n+2+1,2*n+2+2,2*n+2+3,2*n+2+4,2*n+2+5};  // Circle
+// Bucle de líneas para la parte exterior del círculo
+Line Loop(2) = {2*n+2+1,2*n+2+2,2*n+2+3,2*n+2+4,2*n+2+5};  // Círculo exterior
 
-// Physical groups
- 
- 
-Plane Surface(2) = {2, 1};     // Outside the star
-Physical Surface(2) = {2};     // Outside the star
-
-
- 
+// Crear la superficie fuera de la estrella
+Plane Surface(2) = {2, 1};     // Fuera de la estrella
+Physical Surface(2) = {2};     // Superficie física fuera de la estrella
