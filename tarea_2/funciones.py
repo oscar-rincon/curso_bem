@@ -9,6 +9,7 @@ import meshio
 import matplotlib as mpl
 from matplotlib.ticker import FormatStrFormatter
 from numba import njit
+import os
 #--------------------------------------------------
 
 # Configuración de LaTeX para matplotlib
@@ -44,6 +45,10 @@ def read_plot_mesh(file_path, save_path='figs/malla.pdf'):
         - tris_planet (numpy.ndarray): Un array de triángulos de la malla.
         - tris (numpy.ndarray): Un array de triángulos de la malla.
     """
+
+    # Crear la carpeta figs si no existe
+    os.makedirs('figs', exist_ok=True)
+
     # Leer el archivo de malla
     mesh = meshio.read(file_path)
     
@@ -176,6 +181,9 @@ def plot_potential_field_star(pts, tris, potential, field):
     potential (numpy.ndarray): Array de potenciales calculados.
     field (numpy.ndarray): Array de campos eléctricos calculados.
     """
+    # Crear la carpeta figs si no existe
+    os.makedirs('figs', exist_ok=True)
+
     x, y, _ = pts.T
 
     # Graficar el potencial
@@ -237,6 +245,10 @@ def plot_point_source(radius, resolution):
     radius (float): El radio de la máscara.
     resolution (int): La resolución de la malla.
     """
+
+    # Crear la carpeta figs si no existe
+    os.makedirs('figs', exist_ok=True)
+    
     # Crear una malla de puntos en un rango de -radius a radius
     y, x = radius * np.mgrid[-1:1:complex(0, resolution), -1:1:complex(0, resolution)]
 
