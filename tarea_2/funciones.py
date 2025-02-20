@@ -1,3 +1,6 @@
+#--------------------------------------------------
+# Librerías requeridas
+#--------------------------------------------------
 import numpy as np
 from numpy import log, arctan2, pi, mean
 from numpy.linalg import norm, solve
@@ -6,7 +9,7 @@ import meshio
 import matplotlib as mpl
 from matplotlib.ticker import FormatStrFormatter
 from numba import njit
-
+#--------------------------------------------------
 
 # Configuración de LaTeX para matplotlib
 pgf_with_latex = {                      # setup matplotlib to use latex for output
