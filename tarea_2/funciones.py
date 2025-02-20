@@ -5,7 +5,8 @@ import matplotlib.pyplot as plt
 import meshio
 import matplotlib as mpl
 from matplotlib.ticker import FormatStrFormatter
-import numba
+from numba import njit
+
 
 # Configuración de LaTeX para matplotlib
 pgf_with_latex = {                      # setup matplotlib to use latex for output
@@ -64,7 +65,7 @@ def read_plot_mesh(file_path, save_path='figs/malla.pdf'):
 
     return pts, tris_planet, tris
 
-
+@njit
 def green_pot_2d(r):
     """Green function for Laplace equation
     
@@ -80,7 +81,7 @@ def green_pot_2d(r):
     """
     return 0.5*np.log(r)/np.pi
 
-
+@njit
 def green_field_2d(r, unit_vec):
     """Derivative of the Green function for Laplace equation
     
@@ -102,7 +103,7 @@ def green_field_2d(r, unit_vec):
     Ey = -0.5*ny/(r * np.pi)
     return Ex, Ey
 
-
+@njit
 def area_tri(coords):
     """Compute the area of a triangle with given coordinates
 
@@ -121,7 +122,7 @@ def area_tri(coords):
     return 0.5 * np.abs(np.linalg.det(mat))
 
 
-
+@njit
 def compute_potential_field(pts, tris_planet):
     """
     Calcula el potencial y el campo eléctrico para una malla dada.
@@ -145,7 +146,9 @@ def compute_potential_field(pts, tris_planet):
     for tri in tris_planet:
         coords = pts[tri]
         area = area_tri(coords)
-        xm, ym, _ = np.mean(coords, axis=0)
+        #xm, ym, _ = np.mean(coords, axis=0) # esto falla con numba
+        xm, ym, _ = coords.sum(axis=0) / coords.shape[0]
+
         for cont, pt in enumerate(pts):
             pt_x, pt_y, _ = pt
             vec = np.array([pt_x - xm, pt_y - ym])
