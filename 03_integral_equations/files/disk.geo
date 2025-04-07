@@ -1,9 +1,4 @@
-/*
-Disk
-
-Author: Nicolás Guarín-Zapata
-Date: September 2021
-*/
+// Gmsh project created on Thu Jun 11 12:24:03 2020
 
 
 rad = 1.0;
@@ -31,6 +26,6 @@ Physical Curve(1) = {1, 2, 3, 4};
 Physical Surface(2) = {1};
 
 // Mesh parameters
-//ndiv = 321;
-//Transfinite Curve {1, 2, 3, 4} = ndiv Using Progression 1;
-//Transfinite Surface {1};
+ndiv = 321;
+Transfinite Curve {1, 2, 3, 4} = ndiv Using Progression 1;
+Transfinite Surface {1};
