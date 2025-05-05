@@ -9,7 +9,6 @@ def green_pot(r, k):
     r_safe[r_safe == 0] = 1e-10
     return 1j/4 * hankel1(0, k * r_safe)
  
-
 def green_flow(rvec, normal, k):
     """Normal derivative of Green's function: ∂G/∂n_q"""
     rvec[rvec == 0] = 1e-10  # avoid division by zero
@@ -34,11 +33,15 @@ def influence_coeff_num(elem, coords, pt_col, k, npts=4):
     x, jac_det, gs_wts = interp_coord(coords[elem], npts)
     G = green_pot(np.linalg.norm(x - pt_col, axis=1), k)
     G0 = green_pot_0(np.linalg.norm(x - pt_col, axis=1))
-
     # Normal vector (outward) perpendicular to element
-    tangent = coords[elem[1]] - coords[elem[0]]
-    tangent /= norm(tangent)
-    normal = np.array([-tangent[1], tangent[0]])
+    # tangent = coords[elem[1]] - coords[elem[0]]
+    # tangent /= norm(tangent)
+    # normal = np.array([-tangent[1], tangent[0]])
+    dcos = coords[elem[1]] - coords[elem[0]]
+    dcos = dcos / norm(dcos)
+    rotmat = np.array([[dcos[1], -dcos[0]],
+                      [dcos[0], dcos[1]]])
+    normal = rotmat @ dcos
     H = green_flow(x - pt_col, normal, k)
     G_coeff = np.dot(G, gs_wts) * jac_det
     Gdiff_coeff = np.dot(G-G0, gs_wts) * jac_det
