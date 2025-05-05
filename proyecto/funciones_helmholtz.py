@@ -19,7 +19,7 @@ def green_pot_0(r):
     """Green's function for Laplace in 2D (singular subtraction)"""
     r_safe = np.copy(r)
     r_safe[r_safe == 0] = 1e-10
-    return 0.5 * log(r_safe) / pi
+    return -0.5 * log(r_safe) / pi
 
 def interp_coord(coords, npts=4):
     """Interpolate coordinates along element using Gauss points"""
@@ -44,7 +44,7 @@ def influence_coeff_num(elem, coords, pt_col, k, npts=4):
     normal = rotmat @ dcos
     H = green_flow(x - pt_col, normal, k)
     G_coeff = np.dot(G, gs_wts) * jac_det
-    Gdiff_coeff = np.dot(G-G0, gs_wts) * jac_det
+    Gdiff_coeff = np.dot(-G+G0, gs_wts) * jac_det
     H_coeff = np.dot(H, gs_wts) * jac_det
     return G_coeff, H_coeff, Gdiff_coeff
 
@@ -60,7 +60,7 @@ def assem(coords, elems, k):
             Gij, Hij, Gdiff_coeff = influence_coeff_num(elem_row, coords, pt_col, k)
             if i == j:
                 L = norm(coords[elem_row[1]] - coords[elem_row[0]])
-                Gmat[i, j] = - L/pi*(log(L/2)) - Gdiff_coeff
+                Gmat[i, j] = + L/pi*(log(L/2)) + Gdiff_coeff
                 Hmat[i, j] = - 0.5
             else:
                 Gmat[i, j] = Gij
