@@ -9,19 +9,19 @@ def green_pot(r, k):
     r_safe[r_safe == 0] = 1e-10
     return 1j/4 * hankel1(0, k * r_safe)
  
-def green_flow(rvec, normal, k):
+def green_flow(rvec, normal, k, tol=1e-10):
     """Normal derivative of Green's function: ∂G/∂n_q"""
-    rvec[rvec == 0] = 1e-10  # avoid division by zero
+    rvec[rvec <= tol] = 1e-10  # avoid division by zero
     r = np.linalg.norm(rvec)
     return -1j * k / 4 * hankel1(1, k * r) * rvec.dot(normal)
 
-def green_pot_0(r):
+def green_pot_0(r, tol=1e-10):
     """Green's function for Laplace in 2D (singular subtraction)"""
     r_safe = np.copy(r)
-    r_safe[r_safe == 0] = 1e-10
+    r_safe[r_safe <= tol] = 1e-10
     return -0.5 * log(r_safe) / pi
 
-def interp_coord(coords, npts=4):
+def interp_coord(coords, npts=8):
     """Interpolate coordinates along element using Gauss points"""
     gs_pts, gs_wts = roots_legendre(npts)
     x = 0.5 * (np.outer(1 - gs_pts, coords[0]) + np.outer(1 + gs_pts, coords[1]))
@@ -60,7 +60,7 @@ def assem(coords, elems, k):
             Gij, Hij, Gdiff_coeff = influence_coeff_num(elem_row, coords, pt_col, k)
             if i == j:
                 L = norm(coords[elem_row[1]] - coords[elem_row[0]])
-                Gmat[i, j] = + L/pi*(log(L/2)) + Gdiff_coeff
+                Gmat[i, j] = - L/(2*pi)*(log(L/2) - 1)  + Gdiff_coeff
                 Hmat[i, j] = - 0.5
             else:
                 Gmat[i, j] = Gij
