@@ -3,10 +3,10 @@ from numpy import log, pi, mean
 from numpy.linalg import norm
 from scipy.special import roots_legendre, hankel1
 
-def green_pot(r, k):
+def green_pot(r, k, tol=1e-10):
     """Green's function for 2D Helmholtz equation"""
     r_safe = np.copy(r)
-    r_safe[r_safe == 0] = 1e-10
+    r_safe[r_safe <= tol] = 1e-10
     return 1j/4 * hankel1(0, k * r_safe)
  
 def green_flow(rvec, normal, k, tol=1e-10):
@@ -28,7 +28,7 @@ def interp_coord(coords, npts=8):
     jac_det = norm(coords[1] - coords[0]) / 2
     return x, jac_det, gs_wts
 
-def influence_coeff_num(elem, coords, pt_col, k, npts=4):
+def influence_coeff_num(elem, coords, pt_col, k, npts=50):
     """Numerical integration of influence coefficients for element"""
     x, jac_det, gs_wts = interp_coord(coords[elem], npts)
     G = green_pot(np.linalg.norm(x - pt_col, axis=1), k)
