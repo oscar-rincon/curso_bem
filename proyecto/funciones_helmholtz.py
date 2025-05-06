@@ -11,15 +11,22 @@ def green_pot(r, k, tol=1e-10):
  
 def green_flow(rvec, normal, k, tol=1e-10):
     """Normal derivative of Green's function: ∂G/∂n_q"""
-    rvec[rvec <= tol] = 1e-10  # avoid division by zero
+    #rvec[rvec <= tol] = 1e-10 # avoid division by zero
     r = np.linalg.norm(rvec)
-    return -1j * k / 4 * hankel1(1, k * r) * rvec.dot(normal)
+    return 1j * k / 4 * hankel1(1, k * r) * rvec.dot(normal)
+
+def green_flow(rvec, normal, k):
+   """Normal derivative of Green's function: ∂G/∂n_q"""
+   r = np.linalg.norm(rvec, axis=-1)
+   r[r == 0] = 1e-10  # avoid division by zero
+   dot = np.sum(rvec * normal, axis=-1)
+   return -1j * k / 4 * hankel1(1, k * r) * dot / r
 
 def green_pot_0(r, tol=1e-10):
     """Green's function for Laplace in 2D (singular subtraction)"""
     r_safe = np.copy(r)
-    r_safe[r_safe <= tol] = 1e-10
-    return -0.5 * log(r_safe) / pi
+    #r_safe[r_safe <= tol] = 1e-10
+    return 0.5 * log(r_safe) / pi
 
 def interp_coord(coords, npts=8):
     """Interpolate coordinates along element using Gauss points"""
@@ -28,23 +35,23 @@ def interp_coord(coords, npts=8):
     jac_det = norm(coords[1] - coords[0]) / 2
     return x, jac_det, gs_wts
 
-def influence_coeff_num(elem, coords, pt_col, k, npts=50):
+def influence_coeff_num(elem, coords, pt_col, k, npts=8):
     """Numerical integration of influence coefficients for element"""
     x, jac_det, gs_wts = interp_coord(coords[elem], npts)
-    G = green_pot(np.linalg.norm(x - pt_col, axis=1), k)
-    G0 = green_pot_0(np.linalg.norm(x - pt_col, axis=1))
+    G = green_pot(np.linalg.norm(x - pt_col, axis=-1), k)
+    G0 = green_pot_0(np.linalg.norm(x - pt_col, axis=-1))
     # Normal vector (outward) perpendicular to element
-    # tangent = coords[elem[1]] - coords[elem[0]]
-    # tangent /= norm(tangent)
-    # normal = np.array([-tangent[1], tangent[0]])
-    dcos = coords[elem[1]] - coords[elem[0]]
-    dcos = dcos / norm(dcos)
-    rotmat = np.array([[dcos[1], -dcos[0]],
-                      [dcos[0], dcos[1]]])
-    normal = rotmat @ dcos
+    tangent = coords[elem[1]] - coords[elem[0]]
+    tangent /= norm(tangent)
+    normal = np.array([-tangent[1], tangent[0]])
+    # dcos = coords[elem[1]] - coords[elem[0]]
+    # dcos = dcos / norm(dcos)
+    # rotmat = np.array([[dcos[1], -dcos[0]],
+    #                   [dcos[0], dcos[1]]])
+    # normal = rotmat @ dcos
     H = green_flow(x - pt_col, normal, k)
     G_coeff = np.dot(G, gs_wts) * jac_det
-    Gdiff_coeff = np.dot(-G+G0, gs_wts) * jac_det
+    Gdiff_coeff = np.dot(G-G0, gs_wts) * jac_det
     H_coeff = np.dot(H, gs_wts) * jac_det
     return G_coeff, H_coeff, Gdiff_coeff
 
@@ -60,7 +67,7 @@ def assem(coords, elems, k):
             Gij, Hij, Gdiff_coeff = influence_coeff_num(elem_row, coords, pt_col, k)
             if i == j:
                 L = norm(coords[elem_row[1]] - coords[elem_row[0]])
-                Gmat[i, j] = - L/(2*pi)*(log(L/2) - 1)  + Gdiff_coeff
+                Gmat[i, j] = - L/(2*pi)*(log(L/2) - 1)  #+ Gdiff_coeff
                 Hmat[i, j] = - 0.5
             else:
                 Gmat[i, j] = Gij
