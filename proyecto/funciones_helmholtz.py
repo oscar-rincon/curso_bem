@@ -19,6 +19,43 @@ def green_pot_0(r):
     """Green's function for 2D Poisson equation"""
     return -0.5*np.log(r)/np.pi
 
+def green_pot_3d(r, k):
+    """
+    Green's function for the 3D Helmholtz equation.
+    Parameters:
+        r : float
+            Distance between source and field point.
+        k : float
+            Wavenumber.
+    Returns:
+        G : complex
+            Green's function value.
+    """
+    if r == 0:
+        return 0  # Avoid singularity or handle specially
+    return np.exp(1j * k * r) / (4 * np.pi * r)
+
+def green_flow_3d(rvec, normal, k):
+    """
+    Normal derivative of the 3D Helmholtz Green's function (∂G/∂n_q).
+    Parameters:
+        rvec : ndarray
+            Vector from source to field point (x - x_q).
+        normal : ndarray
+            Outward normal vector at the source point.
+        k : float
+            Wavenumber.
+    Returns:
+        dGdn : complex
+            Normal derivative of Green's function.
+    """
+    r = np.linalg.norm(rvec)
+    if r == 0:
+        return 0  # Handle singularity appropriately
+    dot = np.dot(rvec, normal)
+    dGdr = (1j * k / r - 1 / r**2) * np.exp(1j * k * r) / (4 * np.pi)
+    return dGdr * dot / r
+
 def interp_coord(coords, npts=2):
     """Interpolate coordinates along element using Gauss points"""
     gs_pts, gs_wts = roots_legendre(npts)
@@ -29,14 +66,14 @@ def interp_coord(coords, npts=2):
 def influence_coeff_num(elem, coords, pt_col, k, npts=2):
     """Numerical integration of influence coefficients for element"""
     x, jac_det, gs_wts = interp_coord(coords[elem], npts)
-    G = green_pot(np.linalg.norm(x - pt_col, axis=1), k)
+    G = green_pot_3d(np.linalg.norm(x - pt_col, axis=1), k)
     G0 = green_pot_0(np.linalg.norm(x - pt_col, axis=1))
     dcos = coords[elem[1]] - coords[elem[0]]
     dcos = dcos / norm(dcos)
     rotmat = np.array([[dcos[1], -dcos[0]],
                       [dcos[0], dcos[1]]])
     normal = rotmat @ dcos
-    H = green_flow(x - pt_col, normal, k)
+    H = green_flow_3d(x - pt_col, normal, k)
     G_coeff = np.dot(G, gs_wts) * jac_det
     Gdiff_coeff = np.dot(G-G0, gs_wts) * jac_det
     H_coeff = np.dot(H, gs_wts) * jac_det
