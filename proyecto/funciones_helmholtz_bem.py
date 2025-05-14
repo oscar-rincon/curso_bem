@@ -234,7 +234,7 @@ def BoundarySolution(c, density, k, aPhi, aV):
     
     return res
 
-def solveInteriorBoundary(k, alpha, beta, f, phi, v, c_, density, aVertex, aElement, mu = None):
+def solveInteriorBoundary(k, alpha, beta, f, phi, v, aVertex, aElement, c_=0, density=0, mu = None):
     mu = (1j / (k + 1))
     assert f.size == aElement.shape[0]
     A, B = computeBoundaryMatrices(k, mu, aVertex, aElement, orientation = 'interior')
@@ -246,7 +246,7 @@ def solveInteriorBoundary(k, alpha, beta, f, phi, v, c_, density, aVertex, aElem
 
     phi, v = SolveLinearEquation(B, A, c, alpha, beta, f)
     res = BoundarySolution(c_, density, k, phi, v)
-    print(res)
+    #print(res)
     return  v, phi
 
 def solveSamples(k, aV, aPhi, aIncidentPhi, aSamples, aVertex, aElement, orientation='interior'):
@@ -314,8 +314,6 @@ def printInteriorSolution(k, c, density, aPhiInterior):
         print("{:5d}  {: 1.4e}+ {: 1.4e}i   {: 1.4e}+ {: 1.4e}i    {: 1.4e} dB       {:1.4f}".format( \
             i+1, aPhiInterior[i].real, aPhiInterior[i].imag, pressure.real, pressure.imag, magnitude, phase))
         
-
-
 def Square():
     aVertex = np.array([[0.00, 0.0000], [0.00, 0.0125], [0.00, 0.0250], [0.00, 0.0375],
                          [0.00, 0.0500], [0.00, 0.0625], [0.00, 0.0750], [0.00, 0.0875],
@@ -342,3 +340,118 @@ def Square():
                       [28, 29], [29, 30], [30, 31], [31,  0]], dtype=np.int32)
 
     return aVertex, aEdge
+def Square_n(n=10, length=0.1):
+
+    h = length / n
+
+    # Generar puntos por lado (sin repetir esquinas)
+    left   = [(0.0, i * h) for i in range(n)]                      # 0 → n-1
+    top    = [(i * h, length) for i in range(n)]                   # n → 2n-1
+    right  = [(length, length - i * h) for i in range(n)]          # 2n → 3n-1
+    bottom = [(length - i * h, 0.0) for i in range(n)]             # 3n → 4n-1
+
+    # Concatenar en orden deseado
+    aVertex = np.array(left + top + right + bottom, dtype=np.float32)
+
+    # Crear aristas conectando consecutivamente + cierre del contorno
+    num_vertices = 4 * n
+    aEdge = np.array([[i, (i + 1) % num_vertices] for i in range(num_vertices)], dtype=np.int32)
+
+    return aVertex, aEdge
+
+def generateInteriorPoints_test_problem_2(Nx=10, Ny=10, length=0.1):
+
+    # Evitar incluir los bordes: desplazamos un poco desde 0 hasta length
+    x = np.linspace(length / (Nx + 1), length * Nx / (Nx + 1), Nx)
+    y = np.linspace(length / (Ny + 1), length * Ny / (Ny + 1), Ny)
+
+    X, Y = np.meshgrid(x, y)
+    interiorPoints = np.column_stack([X.ravel(), Y.ravel()])
+    return interiorPoints.astype(np.float32)
+
+
+def phi_test_problem_1_2(p1, p2, k):
+    factor = k / np.sqrt(2)
+    return np.sin(factor * p1) * np.sin(factor * p2)
+
+
+def plot_oriented_edges(vertices, elementos, title="Sentido de las aristas en el contorno"):
+
+    plt.figure(figsize=(5, 5))
+
+    # Dibujar flechas para cada arista
+    for i, (start, end) in enumerate(elementos):
+        p1, p2 = vertices[start], vertices[end]
+        dx, dy = p2 - p1
+        plt.arrow(p1[0], p1[1], dx, dy, head_width=0.002, length_includes_head=True, 
+                  color='blue', alpha=0.7)
+
+        # Etiqueta en el centro de la arista
+        cx, cy = (p1 + p2) / 2
+        plt.text(cx, cy, f'{i}', color='purple', fontsize=8, ha='center', va='center')
+
+    # Dibujar nodos y sus índices
+    for i, (x, y) in enumerate(vertices):
+        plt.plot(x, y, 'ko')
+        plt.text(x, y, f'{i}', color='red', fontsize=9, ha='left', va='bottom')
+
+    plt.title(title)
+    plt.xlabel("x")
+    plt.ylabel("y")
+    plt.axis('equal')
+    plt.grid(True)
+    plt.show()
+
+def plot_edge_scalar_field(centros, vertices, elementos, f, cmap="magma", title=""):
+ 
+    plt.figure(figsize=(5, 5))
+    colormap = plt.get_cmap(cmap)
+
+    # Dibujar los elementos como líneas grises
+    for i, edge in enumerate(elementos):
+        p1, p2 = vertices[edge[0]], vertices[edge[1]]
+        plt.plot([p1[0], p2[0]], [p1[1], p2[1]], color='gray', linewidth=2)
+
+    # Dibujar los centros coloreados según f
+    sc = plt.scatter(centros[:, 0], centros[:, 1], c=f.real, cmap=colormap, edgecolors='k', zorder=3)
+
+    # Barra de color
+    plt.colorbar(sc, label="Condición de contorno f", orientation="vertical", pad=0.02, aspect=20, shrink=0.8)
+    plt.gca().set_aspect('equal')
+    plt.xlabel("x")
+    plt.ylabel("y")
+    if title:
+        plt.title(title)
+    plt.grid(True)
+    plt.show()
+
+def plot_solutions(exact_sol, num_sol, interiorPoints):
+ 
+    # Crear figura con tres subgráficos lado a lado
+    fig, axs = plt.subplots(1, 3, figsize=(12, 3), constrained_layout=True)
+
+    # Solución numérica
+    tcf1 = axs[0].tricontourf(interiorPoints[:, 0], interiorPoints[:, 1], num_sol, levels=50, cmap='magma')
+    fig.colorbar(tcf1, ax=axs[0], label=r'$u(p)$')
+    axs[0].set_title("Solución Numérica")
+    axs[0].set_xlabel("x")
+    axs[0].set_ylabel("y")
+
+    # Solución exacta
+    tcf2 = axs[1].tricontourf(interiorPoints[:, 0], interiorPoints[:, 1], exact_sol, levels=50, cmap='magma')
+    fig.colorbar(tcf2, ax=axs[1], label=r'$u(p)$')
+    axs[1].set_title("Solución Exacta")
+    axs[1].set_xlabel("x")
+    axs[1].set_ylabel("y")
+
+    # Error absoluto
+    error = np.abs(num_sol - exact_sol)
+    tcf3 = axs[2].tricontourf(interiorPoints[:, 0], interiorPoints[:, 1], error, levels=50, cmap='magma')
+    fig.colorbar(tcf3, ax=axs[2], label=r'Error $|u_{num} - u_{exact}|$')
+    axs[2].set_title("Error")
+    axs[2].set_xlabel("x")
+    axs[2].set_ylabel("y")
+
+    plt.show()
+
+
