@@ -2,6 +2,7 @@ import numpy as np
 from numpy.linalg import norm
 import matplotlib.pyplot as plt
 from scipy.special import hankel1
+import scipy
 
 def wavenumberToFrequency(k, c = 344.0):
     return 0.5 * k * c / np.pi
@@ -171,7 +172,7 @@ def SolveLinearEquation(Ai, Bi, ci, alpha, beta, f):
                 A[j, i] = -beta[i] * A[j, i] / alpha[i]
 
     A -= B
-    y = np.linalg.solve(A, c)
+    y = np.linalg.solve(A, c)#scipy.sparse.linalg.lgmres(A, c)#np.linalg.solve(A, c)
 
     for i in range(c.size):
         if swapXY[i]:
@@ -187,7 +188,7 @@ def SolveLinearEquation(Ai, Bi, ci, alpha, beta, f):
 
     return x, y
 
-def computeBoundaryMatrices(k, mu, aVertex, aElement, orientation='interior'):
+def computeBoundaryMatrices(k, mu, aVertex, aElement, orientation):
     A = np.empty((aElement.shape[0], aElement.shape[0]), dtype=complex)
     B = np.empty(A.shape, dtype=complex)
 
@@ -234,10 +235,10 @@ def BoundarySolution(c, density, k, aPhi, aV):
     
     return res
 
-def solveInteriorBoundary(k, alpha, beta, f, phi, v, aVertex, aElement, c_=0, density=0, mu = None):
+def solveInteriorBoundary(k, alpha, beta, f, phi, v, aVertex, aElement, c_=0, density=0, mu = None, orientation = 'interior'):
     mu = (1j / (k + 1))
     assert f.size == aElement.shape[0]
-    A, B = computeBoundaryMatrices(k, mu, aVertex, aElement, orientation = 'interior')
+    A, B = computeBoundaryMatrices(k, mu, aVertex, aElement, orientation)
     c = np.empty(aElement.shape[0], dtype=complex)
     for i in range(aElement.shape[0]):
         # Note, the only difference between the interior solver and this
@@ -248,34 +249,7 @@ def solveInteriorBoundary(k, alpha, beta, f, phi, v, aVertex, aElement, c_=0, de
     res = BoundarySolution(c_, density, k, phi, v)
     #print(res)
     return  v, phi
-
-def solveSamples(k, aV, aPhi, aIncidentPhi, aSamples, aVertex, aElement, orientation='interior'):
-    assert aIncidentPhi.shape == aSamples.shape[:-1], \
-        "Incident phi vector and sample points vector must match"
-
-    aResult = np.empty(aSamples.shape[0], dtype=complex)
-
-    for i in range(aIncidentPhi.size):
-        p  = aSamples[i]
-        sum = aIncidentPhi[i]
-        for j in range(aPhi.size):
-            qa = aVertex[aElement[j, 0]]
-            qb = aVertex[aElement[j, 1]]
-
-            elementL  = ComputeL(k, p, qa, qb, False)
-            elementM  = ComputeM(k, p, qa, qb, False)
-            if orientation == 'interior':
-                sum += elementL * aV[j] - elementM * aPhi[j]
-            elif orientation == 'exterior':
-                sum -= elementL * aV[j] - elementM * aPhi[j]
-            else:
-                assert False, 'Invalid orientation: {}'.format(orientation)
-        aResult[i] = sum
-    return aResult
-
-def solveInterior(k, aV, aPhi, aIncidentInteriorPhi, aInteriorPoints, aVertex, aElement):
-    return solveSamples(k, aV, aPhi, aIncidentInteriorPhi, aInteriorPoints, aVertex, aElement, 'interior')
-
+ 
 
 def solveSamples(k, aV, aPhi, aIncidentPhi, aSamples, aVertex, aElement, orientation):
     assert aIncidentPhi.shape == aSamples.shape[:-1], \
@@ -301,8 +275,8 @@ def solveSamples(k, aV, aPhi, aIncidentPhi, aSamples, aVertex, aElement, orienta
         aResult[i] = sum
     return aResult
 
-def solveInterior(k, aV, aPhi, aIncidentInteriorPhi, aInteriorPoints, aVertex, aElement):
-    return solveSamples(k, aV, aPhi, aIncidentInteriorPhi, aInteriorPoints, aVertex, aElement, 'interior')
+def solveInterior(k, aV, aPhi, aIncidentInteriorPhi, aInteriorPoints, aVertex, aElement, orientation = 'interior'):
+    return solveSamples(k, aV, aPhi, aIncidentInteriorPhi, aInteriorPoints, aVertex, aElement, orientation)
 
 def printInteriorSolution(k, c, density, aPhiInterior):
     print("\nSound pressure at the sample points\n")
@@ -359,6 +333,20 @@ def Square_n(n=10, length=0.1):
 
     return aVertex, aEdge
 
+def Circle_n(n=40, radius=1.0):
+
+    # Ángulos en sentido horario
+    theta = np.linspace(0, -2 * np.pi, n, endpoint=False)
+    x = radius * np.cos(theta)
+    y = radius * np.sin(theta)
+    aVertex = np.vstack((x, y)).T.astype(np.float32)
+
+    # Crear aristas conectando puntos consecutivos + cierre del contorno
+    aEdge = np.array([[i, (i + 1) % n] for i in range(n)], dtype=np.int32)
+
+    return aVertex, aEdge
+
+
 def generateInteriorPoints_test_problem_2(Nx=10, Ny=10, length=0.1):
 
     # Evitar incluir los bordes: desplazamos un poco desde 0 hasta length
@@ -368,6 +356,25 @@ def generateInteriorPoints_test_problem_2(Nx=10, Ny=10, length=0.1):
     X, Y = np.meshgrid(x, y)
     interiorPoints = np.column_stack([X.ravel(), Y.ravel()])
     return interiorPoints.astype(np.float32)
+
+def generateInteriorPoints_excluding_circle(Nx=5, Ny=5, xmin=-2.0, xmax=2.0, ymin=-2.0, ymax=2.0, r_exclude=1.0):
+
+    x = np.linspace(xmin, xmax, Nx)
+    y = np.linspace(ymin, ymax, Ny)
+    X, Y = np.meshgrid(x, y)
+    points = np.column_stack([X.ravel(), Y.ravel()])
+
+    # Calcular distancia al origen
+    distance_squared = points[:, 0]**2 + points[:, 1]**2
+
+    # Máscara de puntos fuera y dentro del círculo
+    mask_outside = distance_squared >= r_exclude**2
+    mask_inside  = ~mask_outside
+
+    points_outside = points[mask_outside].astype(np.float32)
+    points_inside  = points[mask_inside].astype(np.float32)
+
+    return points_outside, points_inside
 
 
 def phi_test_problem_1_2(p1, p2, k):
