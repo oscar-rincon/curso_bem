@@ -1,8 +1,27 @@
 import numpy as np
 from numpy.linalg import norm
 import matplotlib.pyplot as plt
-from scipy.special import hankel1
-import scipy
+from scipy.special import hankel1,jv
+import matplotlib as mpl
+from scipy.interpolate import griddata
+
+# Configuración de LaTeX para matplotlib
+pgf_with_latex = {                      # setup matplotlib to use latex for output
+    "pgf.texsystem": "xelatex",        # change this if using xetex or lautex
+    "text.usetex": False,                # use LaTeX to write all text
+    "font.family": "sans-serif",
+    # "font.serif": [],
+    "font.sans-serif": ["DejaVu Sans"], # specify the sans-serif font
+    "font.monospace": [],
+    "axes.labelsize": 8,               # LaTeX default is 10pt font.
+    "font.size": 0,
+    "legend.fontsize": 8,               # Make the legend/label fonts a little smaller
+    "xtick.labelsize": 8,
+    "ytick.labelsize": 8,
+    # "figure.figsize": (3.15, 2.17),     # default fig size of 0.9 textwidth
+    "pgf.preamble": r'\usepackage{amsmath},\usepackage{amsthm},\usepackage{amssymb},\usepackage{mathspec},\renewcommand{\familydefault}{\sfdefault},\usepackage[italic]{mathastext}'
+    }
+mpl.rcParams.update(pgf_with_latex)
 
 def wavenumberToFrequency(k, c = 344.0):
     return 0.5 * k * c / np.pi
@@ -222,6 +241,42 @@ def computeBoundaryMatrices(k, mu, aVertex, aElement, orientation):
             
     return A, B
 
+
+def computeBoundaryMatricesExterior(k, mu, aVertex, aElement, orientation):
+    orientation == 'exterior'
+    A = np.empty((aElement.shape[0], aElement.shape[0]), dtype=complex)
+    B = np.empty(A.shape, dtype=complex)
+
+    for i in range(aElement.shape[0]):
+        pa = aVertex[aElement[i, 0]]
+        pb = aVertex[aElement[i, 1]]
+        pab = pb - pa
+        center = 0.5 * (pa + pb)
+        centerNormal = Normal2D(pa, pb)
+        for j in range(aElement.shape[0]):
+            qa = aVertex[aElement[j, 0]]
+            qb = aVertex[aElement[j, 1]]
+
+            elementL  = ComputeL(k, center, qa, qb, i==j)
+            elementM  = ComputeM(k, center, qa, qb, i==j)
+            elementMt = ComputeMt(k, center, centerNormal, qa, qb, i==j)
+            elementN  = ComputeN(k, center, centerNormal, qa, qb, i==j)
+            
+            A[i, j] = elementL + mu * elementMt
+            B[i, j] = elementM + mu * elementN
+
+        if orientation == 'interior':
+            # interior variant, signs are reversed for exterior
+            A[i,i] -= 0.5 * mu
+            B[i,i] += 0.5
+        elif orientation == 'exterior':
+            A[i,i] += 0.5 * mu
+            B[i,i] -= 0.5
+        else:
+            assert False, 'Invalid orientation: {}'.format(orientation)
+            
+    return A, B
+
 def BoundarySolution(c, density, k, aPhi, aV):
     res = f"Density of medium:      {density} kg/m^3\n"
     res += f"Speed of sound:         {c} m/s\n"
@@ -249,7 +304,25 @@ def solveInteriorBoundary(k, alpha, beta, f, phi, v, aVertex, aElement, c_=0, de
     res = BoundarySolution(c_, density, k, phi, v)
     #print(res)
     return  v, phi
+
  
+def solveExteriorBoundary(k, alpha, beta, f, phi, v, aVertex, aElement, c_=0, density=0, mu = None, orientation = 'exterior'):
+    mu = (1j / (k + 1))
+    assert f.size == aElement.shape[0]
+    A, B = computeBoundaryMatrices(k, mu, aVertex, aElement, orientation)
+    c = np.empty(aElement.shape[0], dtype=complex)
+    for i in range(aElement.shape[0]):
+        # Note, the only difference between the interior solver and this
+        # one is the sign of the assignment below.
+        c[i] = -(phi[i] + mu * v[i])
+
+    phi, v = SolveLinearEquation(B, A, c,
+                                        alpha,
+                                        beta,
+                                        f)
+    res = BoundarySolution(c_, density, k, phi, v)
+    return v, phi
+
 
 def solveSamples(k, aV, aPhi, aIncidentPhi, aSamples, aVertex, aElement, orientation):
     assert aIncidentPhi.shape == aSamples.shape[:-1], \
@@ -276,6 +349,9 @@ def solveSamples(k, aV, aPhi, aIncidentPhi, aSamples, aVertex, aElement, orienta
     return aResult
 
 def solveInterior(k, aV, aPhi, aIncidentInteriorPhi, aInteriorPoints, aVertex, aElement, orientation = 'interior'):
+    return solveSamples(k, aV, aPhi, aIncidentInteriorPhi, aInteriorPoints, aVertex, aElement, orientation)
+
+def solveExterior(k, aV, aPhi, aIncidentInteriorPhi, aInteriorPoints, aVertex, aElement, orientation = 'exterior'):
     return solveSamples(k, aV, aPhi, aIncidentInteriorPhi, aInteriorPoints, aVertex, aElement, orientation)
 
 def printInteriorSolution(k, c, density, aPhiInterior):
@@ -381,55 +457,53 @@ def phi_test_problem_1_2(p1, p2, k):
     factor = k / np.sqrt(2)
     return np.sin(factor * p1) * np.sin(factor * p2)
 
+def plot_edges_and_field(vertices, elementos, centros, f, cmap="magma"):
+    fig, axs = plt.subplots(1, 2, figsize=(8, 3), gridspec_kw={'width_ratios': [1.4, 2]})
 
-def plot_oriented_edges(vertices, elementos, title=""):
-
-    plt.figure(figsize=(5, 5))
-
-    # Dibujar flechas para cada arista
+    # Subplot 1: Aristas orientadas con flechas
+    ax = axs[0]
     for i, (start, end) in enumerate(elementos):
         p1, p2 = vertices[start], vertices[end]
         dx, dy = p2 - p1
-        plt.arrow(p1[0], p1[1], dx, dy, head_width=0.002, length_includes_head=True, 
-                  color='blue', alpha=0.7)
+        ax.arrow(p1[0], p1[1], dx, dy, head_width=0.06, length_includes_head=True, 
+                 color='blue', alpha=0.7)
 
-        # Etiqueta en el centro de la arista
-        cx, cy = (p1 + p2) / 2
-        plt.text(cx, cy, f'{i}', color='purple', fontsize=8, ha='center', va='center')
+    # Calcular centroide para desplazar etiquetas hacia afuera
+    centroide = np.mean(vertices, axis=0)
 
-    # Dibujar nodos y sus índices
     for i, (x, y) in enumerate(vertices):
-        plt.plot(x, y, 'ko')
-        plt.text(x, y, f'{i}', color='red', fontsize=9, ha='left', va='bottom')
-
-    plt.title(title)
-    plt.xlabel("x")
-    plt.ylabel("y")
-    plt.axis('equal')
-    plt.grid(True)
-    plt.show()
-
-def plot_edge_scalar_field(centros, vertices, elementos, f, cmap="magma", title=""):
+        ax.plot(x, y, 'ko', markersize=3)
+        # Vector desde centroide hacia el nodo
+        dx, dy = x - centroide[0], y - centroide[1]
+        norma = np.sqrt(dx**2 + dy**2) + 1e-12
+        offset_x, offset_y = 0.12 * dx / norma, 0.12 * dy / norma
+        ax.text(x + offset_x, y + offset_y, f'{i}', color='red', fontsize=8, ha='center', va='center')
  
-    plt.figure(figsize=(5, 5))
+    ax.set_xlabel("x")
+    ax.set_ylabel("y")
+    ax.set_xlim(-1.0, 1.0)
+    ax.set_ylim(- 1.0, 1.0)
+    ax.grid(True) 
+    #ax.grid(True)
+
+    # Subplot 2: Campo escalar en centros
+    ax = axs[1]
     colormap = plt.get_cmap(cmap)
 
-    # Dibujar los elementos como líneas grises
-    for i, edge in enumerate(elementos):
-        p1, p2 = vertices[edge[0]], vertices[edge[1]]
-        plt.plot([p1[0], p2[0]], [p1[1], p2[1]], color='gray', linewidth=2)
+    for i, (start, end) in enumerate(elementos):
+        p1, p2 = vertices[start], vertices[end]
+        ax.plot([p1[0], p2[0]], [p1[1], p2[1]], color='gray', linewidth=2)
 
-    # Dibujar los centros coloreados según f
-    sc = plt.scatter(centros[:, 0], centros[:, 1], c=f.real, cmap=colormap, edgecolors='k', zorder=3)
+    sc = ax.scatter(centros[:, 0], centros[:, 1], c=f.real, cmap=colormap, edgecolors='k', zorder=3)
 
-    # Barra de color
-    plt.colorbar(sc, label="Condición de contorno f", orientation="vertical", pad=0.02, aspect=20, shrink=0.8)
-    plt.gca().set_aspect('equal')
-    plt.xlabel("x")
-    plt.ylabel("y")
-    if title:
-        plt.title(title)
-    plt.grid(True)
+    cbar = fig.colorbar(sc, ax=ax, label="Condición de contorno", orientation="vertical", pad=0.02, aspect=20, shrink=1.0)
+    ax.set_aspect('equal')
+    ax.set_xlabel("x")
+    ax.set_ylabel("y")
+    ax.set_xlim(-1.0, 1.0)
+    ax.set_ylim(- 1.0, 1.0)
+    ax.grid(True)
+    #plt.tight_layout()
     plt.show()
 
 def plot_solutions(exact_sol, num_sol, interiorPoints):
@@ -461,4 +535,188 @@ def plot_solutions(exact_sol, num_sol, interiorPoints):
 
     plt.show()
 
+# Function to compute the exact solution
+def sound_hard_circle_calc(k0, a, X, Y, n_terms=None):
+ 
+    points = np.column_stack((X.ravel(), Y.ravel()))
+    fem_xx = points[:, 0:1]
+    fem_xy = points[:, 1:2]
+    r = np.sqrt(fem_xx * fem_xx + fem_xy * fem_xy)
+    theta = np.arctan2(fem_xy, fem_xx)
+    npts = np.size(fem_xx, 0)
+    if n_terms is None:
+        n_terms = int(30 + (k0 * a)**1.01)
+    u_scn = np.zeros((npts), dtype=np.complex128)
+    for n in range(-n_terms, n_terms):
+        bessel_deriv = jv(n-1, k0*a) - n/(k0*a) * jv(n, k0*a)
+        hankel_deriv = n/(k0*a)*hankel1(n, k0*a) - hankel1(n+1, k0*a)
+        u_scn += (-(1j)**(n) * (bessel_deriv/hankel_deriv) * hankel1(n, k0*r) * \
+            np.exp(1j*n*theta)).ravel()
+    u_scn = np.reshape(u_scn, X.shape)
+    u_inc = np.exp(1j*k0*X)
+    u = u_inc + u_scn
+    return u_inc, u_scn, u
 
+
+def mask_displacement(R_exact, r_i, r_e, u):
+ 
+    u = np.ma.masked_where(R_exact < r_i, u)
+    return u
+
+def plot_exact_displacement(X, Y, u_inc_amp, u_scn_amp, u_amp, u_inc_phase, u_scn_phase, u_phase):
+ 
+
+    fig, axs = plt.subplots(2, 3, figsize=(6.5, 3.5))
+    decimales = 1e+4  # Number of decimals for the color bar
+    shrink = 0.5  # Shrink factor for the color bar
+
+    # Amplitude of the incident wave
+    c1 = axs[0, 0].pcolormesh(X, Y, u_inc_amp, cmap="RdYlBu", rasterized=True, vmin=-1.5, vmax=1.5)
+    cb1 = fig.colorbar(c1, ax=axs[0, 0], shrink=shrink, orientation="horizontal", pad=0.07, format='%.4f')
+    cb1.set_label(r"$u_{\rm{inc}}$")
+    cb1.set_ticks([-1.5, 1.5])
+    cb1.set_ticklabels([f'{-1.5}', f'{1.5}'], fontsize=7)
+    axs[0, 0].axis("off")
+    axs[0, 0].set_aspect("equal")
+
+    # Amplitude of the scattered wave
+    c2 = axs[0, 1].pcolormesh(X, Y, u_scn_amp, cmap="RdYlBu", rasterized=True, vmin=-1.5, vmax=1.5)
+    cb2 = fig.colorbar(c2, ax=axs[0, 1], shrink=shrink, orientation="horizontal", pad=0.07, format='%.4f')
+    cb2.set_label(r"$u_{\rm{sct}}$")
+    cb2.set_ticks([-1.5, 1.5])
+    cb2.set_ticklabels([f'{-1.5}', f'{1.5}'], fontsize=7)
+    axs[0, 1].axis("off")
+    axs[0, 1].set_aspect("equal")
+
+    # Amplitude of the total wave
+    c3 = axs[0, 2].pcolormesh(X, Y, u_amp, cmap="RdYlBu", rasterized=True, vmin=-1.5, vmax=1.5)
+    cb3 = fig.colorbar(c3, ax=axs[0, 2], shrink=shrink, orientation="horizontal", pad=0.07, format='%.4f')
+    cb3.set_label(r"$u$")
+    cb3.set_ticks([-1.5, 1.5])
+    cb3.set_ticklabels([f'{-1.5}', f'{1.5}'], fontsize=7)
+    axs[0, 2].axis("off")
+    axs[0, 2].set_aspect("equal")
+
+    # Phase of the incident wave
+    c4 = axs[1, 0].pcolormesh(X, Y, u_inc_phase, cmap="twilight_shifted", rasterized=True, vmin=-(np.pi), vmax=(np.pi))
+    cb4 = fig.colorbar(c4, ax=axs[1, 0], shrink=shrink, orientation="horizontal", pad=0.07, format='%.4f')
+    cb4.set_label(r"$u_{\rm{inc}}$")
+    cb4.set_ticks([-(np.pi),(np.pi)])
+    cb4.set_ticklabels([r'-$\pi$', r'$\pi$'], fontsize=7)
+    axs[1, 0].axis("off")
+    axs[1, 0].set_aspect("equal")
+
+    # Phase of the scattered wave
+    c5 = axs[1, 1].pcolormesh(X, Y, u_scn_phase, cmap="twilight_shifted", rasterized=True, vmin=-(np.pi), vmax=(np.pi))
+    cb5 = fig.colorbar(c5, ax=axs[1, 1], shrink=shrink, orientation="horizontal", pad=0.07, format='%.4f')
+    cb5.set_label(r"$u_{\rm{sct}}$")
+    cb5.set_ticks([-(np.pi),(np.pi)])
+    cb5.set_ticklabels([r'-$\pi$', r'$\pi$'], fontsize=7)
+    axs[1, 1].axis("off")
+    axs[1, 1].set_aspect("equal")
+
+    # Phase of the total wave
+    c6 = axs[1, 2].pcolormesh(X, Y, u_phase, cmap="twilight_shifted", rasterized=True, vmin=-(np.pi), vmax=(np.pi))
+    cb6 = fig.colorbar(c6, ax=axs[1, 2], shrink=shrink, orientation="horizontal", pad=0.07, format='%.4f')
+    cb6.set_label(r"$u$")
+    cb6.set_ticks([-(np.pi),(np.pi)])
+    cb6.set_ticklabels([r'-$\pi$', r'$\pi$'], fontsize=7)
+    axs[1, 2].axis("off")
+    axs[1, 2].set_aspect("equal")
+
+    # Add rotated labels "Amplitude" and "Phase"
+    fig.text(0.05, 0.80, r'Exact - Amplitude', fontsize=8, fontweight='regular', va='center', ha='center', rotation='vertical')
+    fig.text(0.05, 0.30, r'Exact - Phase', fontsize=8, fontweight='regular', va='center', ha='center', rotation='vertical')
+
+    # Adjust space between rows (increase 'hspace' for more space between rows)
+    plt.subplots_adjust(hspace=1.1)  # You can tweak this value (e.g., 0.5, 0.6) as needed
+
+    # Tight layout
+    plt.tight_layout()
+
+    # Save the figure
+    #plt.savefig("figs/displacement_exact.pdf", dpi=300, bbox_inches='tight')
+
+
+def plot_bem_displacements(X, Y, u_inc_amp, u_scn_amp, u_amp, u_inc_phase, u_scn_phase, u_phase):
+    """
+    Plot the amplitude and phase of the incident, scattered, and total displacement.
+
+    Parameters:
+    X (numpy.ndarray): X-coordinates of the grid.
+    Y (numpy.ndarray): Y-coordinates of the grid.
+    u_inc (numpy.ndarray): Incident displacement field.
+    u_scn (numpy.ndarray): Scattered displacement field.
+    u (numpy.ndarray): Total displacement field.
+    """
+
+    fig, axs = plt.subplots(2, 3, figsize=(6.5, 3.5))
+    decimales = 1e+4  # Number of decimals for the color bar
+    shrink = 0.5  # Shrink factor for the color bar
+
+    # Amplitude of the incident wave
+    c1 = axs[0, 0].pcolormesh(X, Y, u_inc_amp, cmap="RdYlBu", rasterized=True, vmin=-1.5, vmax=1.5)
+    cb1 = fig.colorbar(c1, ax=axs[0, 0], shrink=shrink, orientation="horizontal", pad=0.07, format='%.4f')
+    cb1.set_label(r"$u_{\rm{sct}}$")
+    cb1.set_ticks([-1.5, 1.5])
+    cb1.set_ticklabels([f'{-1.5}', f'{1.5}'], fontsize=7)
+    axs[0, 0].axis("off")
+    axs[0, 0].set_aspect("equal")
+
+    # Amplitude of the scattered wave
+    c2 = axs[0, 1].pcolormesh(X, Y, u_scn_amp, cmap="RdYlBu", rasterized=True, vmin=-1.5, vmax=1.5)
+    cb2 = fig.colorbar(c2, ax=axs[0, 1], shrink=shrink, orientation="horizontal", pad=0.07, format='%.4f')
+    cb2.set_label(r"$u$")
+    cb2.set_ticks([-1.5, 1.5])
+    cb2.set_ticklabels([f'{-1.5}', f'{1.5}'], fontsize=7)
+    axs[0, 1].axis("off")
+    axs[0, 1].set_aspect("equal")
+
+    # Amplitude of the total wave
+    c3 = axs[0, 2].pcolormesh(X, Y, np.abs(u_amp)/np.abs(u_scn_amp).max(), cmap="magma", rasterized=True)
+    cb3 = fig.colorbar(c3, ax=axs[0, 2], shrink=shrink, orientation="horizontal", pad=0.07, format='%.4f')
+    cb3.set_label(r"|Error| / max($u$)")
+    cb3.set_ticks([0, np.max(np.abs(u_amp)/np.abs(u_scn_amp).max())])
+    cb3.set_ticklabels([f'{0:.1f}', f'{np.max(np.abs(u_amp)/np.abs(u_scn_amp).max()):.4f}'], fontsize=7)
+    axs[0, 2].axis("off")
+    axs[0, 2].set_aspect("equal")
+
+    # Phase of the incident wave
+    c4 = axs[1, 0].pcolormesh(X, Y, u_inc_phase, cmap="twilight_shifted", rasterized=True, vmin=-(np.pi), vmax=(np.pi))
+    cb4 = fig.colorbar(c4, ax=axs[1, 0], shrink=shrink, orientation="horizontal", pad=0.07, format='%.4f')
+    cb4.set_label(r"$u_{\rm{sct}}$")
+    cb4.set_ticks([-(np.pi),(np.pi)])
+    cb4.set_ticklabels([r'-$\pi$', r'$\pi$'], fontsize=7)
+    axs[1, 0].axis("off")
+    axs[1, 0].set_aspect("equal")
+
+    # Phase of the scattered wave
+    c5 = axs[1, 1].pcolormesh(X, Y, u_scn_phase, cmap="twilight_shifted", rasterized=True, vmin=-(np.pi), vmax=(np.pi))
+    cb5 = fig.colorbar(c5, ax=axs[1, 1], shrink=shrink, orientation="horizontal", pad=0.07, format='%.4f')
+    cb5.set_label(r"$u$")
+    cb5.set_ticks([-(np.pi),(np.pi)])
+    cb5.set_ticklabels([r'-$\pi$', r'$\pi$'], fontsize=7)
+    axs[1, 1].axis("off")
+    axs[1, 1].set_aspect("equal")
+
+    # Phase of the total wave
+    c6 = axs[1, 2].pcolormesh(X, Y, u_phase/np.abs(u_scn_phase).max(), cmap="magma", rasterized=True)
+    cb6 = fig.colorbar(c6, ax=axs[1, 2], shrink=shrink, orientation="horizontal", pad=0.07, format='%.4f')
+    cb6.set_label(r"|Error| / max($u$)")
+    cb6.set_ticks([0, np.max(u_phase)/np.abs(u_scn_phase).max()])
+    cb6.set_ticklabels([f'{0:.1f}', f'{np.max(np.abs(u_phase)/np.abs(u_scn_phase).max()):.4f}'], fontsize=7)
+    axs[1, 2].axis("off")
+    axs[1, 2].set_aspect("equal")
+
+    # Add rotated labels "Amplitude" and "Phase"
+    fig.text(0.05, 0.80, r'BEM - Amplitude', fontsize=8, fontweight='regular', va='center', ha='center', rotation='vertical')
+    fig.text(0.05, 0.30, r'BEM - Phase', fontsize=8, fontweight='regular', va='center', ha='center', rotation='vertical')
+
+    # Adjust space between rows (increase 'hspace' for more space between rows)
+    plt.subplots_adjust(hspace=1.1)  # You can tweak this value (e.g., 0.5, 0.6) as needed
+
+    # Tight layout
+    plt.tight_layout()
+
+    # Save the figure
+    #plt.savefig("figs/displacement_pinns.svg", dpi=150, bbox_inches='tight')
