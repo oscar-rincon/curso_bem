@@ -719,4 +719,4 @@ def plot_bem_displacements(X, Y, u_inc_amp, u_scn_amp, u_amp, u_inc_phase, u_scn
     plt.tight_layout()
 
     # Save the figure
-    #plt.savefig("figs/displacement_pinns.svg", dpi=150, bbox_inches='tight')
+    plt.savefig("displacement_pinns.svg", dpi=150, bbox_inches='tight')
