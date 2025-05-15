@@ -382,7 +382,7 @@ def phi_test_problem_1_2(p1, p2, k):
     return np.sin(factor * p1) * np.sin(factor * p2)
 
 
-def plot_oriented_edges(vertices, elementos, title="Sentido de las aristas en el contorno"):
+def plot_oriented_edges(vertices, elementos, title=""):
 
     plt.figure(figsize=(5, 5))
 
