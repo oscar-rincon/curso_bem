@@ -320,7 +320,7 @@ def solveExteriorBoundary(k, alpha, beta, f, phi, v, aVertex, aElement, c_=0, de
                                         alpha,
                                         beta,
                                         f)
-    res = BoundarySolution(c_, density, k, phi, v)
+    #res = BoundarySolution(c_, density, k, phi, v)
     return v, phi
 
 
@@ -503,8 +503,10 @@ def plot_edges_and_field(vertices, elementos, centros, f, cmap="magma"):
     ax.set_xlim(-1.0, 1.0)
     ax.set_ylim(- 1.0, 1.0)
     ax.grid(True)
-    #plt.tight_layout()
+ 
+    plt.savefig("edges_and_field.svg", dpi=150, bbox_inches='tight')
     plt.show()
+    
 
 def plot_solutions(exact_sol, num_sol, interiorPoints):
  
@@ -719,4 +721,4 @@ def plot_bem_displacements(X, Y, u_inc_amp, u_scn_amp, u_amp, u_inc_phase, u_scn
     plt.tight_layout()
 
     # Save the figure
-    plt.savefig("displacement_pinns.svg", dpi=150, bbox_inches='tight')
+    plt.savefig("displacement.svg", dpi=150, bbox_inches='tight')
