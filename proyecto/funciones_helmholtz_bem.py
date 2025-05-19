@@ -21,6 +21,7 @@ pgf_with_latex = {                      # setup matplotlib to use latex for outp
     # "figure.figsize": (3.15, 2.17),     # default fig size of 0.9 textwidth
     "pgf.preamble": r'\usepackage{amsmath},\usepackage{amsthm},\usepackage{amssymb},\usepackage{mathspec},\renewcommand{\familydefault}{\sfdefault},\usepackage[italic]{mathastext}'
     }
+
 mpl.rcParams.update(pgf_with_latex)
 
 def wavenumberToFrequency(k, c = 344.0):
