@@ -453,6 +453,38 @@ def generateInteriorPoints_excluding_circle(Nx=5, Ny=5, xmin=-2.0, xmax=2.0, ymi
 
     return points_outside, points_inside
 
+def generateRectangleBoundaryPoints_excluding_circle(Nx=20, Ny=20,
+                                                     xmin=-2.0, xmax=2.0,
+                                                     ymin=-2.0, ymax=2.0,
+                                                     r_exclude=1.0):
+    # Bordes: izquierdo, derecho, inferior, superior
+    x_left   = np.full(Ny, xmin)
+    x_right  = np.full(Ny, xmax)
+    y_bottom = np.full(Nx, ymin)
+    y_top    = np.full(Nx, ymax)
+
+    y_vals = np.linspace(ymin, ymax, Ny)
+    x_vals = np.linspace(xmin, xmax, Nx)
+
+    # Crear puntos sobre los 4 lados
+    left   = np.column_stack((x_left, y_vals))
+    right  = np.column_stack((x_right, y_vals))
+    bottom = np.column_stack((x_vals, y_bottom))
+    top    = np.column_stack((x_vals, y_top))
+
+    # Unir todos los bordes
+    all_edges = np.vstack((left, right, bottom, top))
+
+    # Quitar duplicados en esquinas (opcional)
+    all_edges = np.unique(all_edges, axis=0)
+
+    # Filtrar puntos fuera del círculo
+    distance_squared = all_edges[:, 0]**2 + all_edges[:, 1]**2
+    mask_outside = distance_squared >= r_exclude**2
+
+    boundary_points = all_edges[mask_outside].astype(np.float32)
+
+    return boundary_points
 
 def phi_test_problem_1_2(p1, p2, k):
     factor = k / np.sqrt(2)
