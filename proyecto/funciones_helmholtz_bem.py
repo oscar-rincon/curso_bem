@@ -317,10 +317,7 @@ def solveExteriorBoundary(k, alpha, beta, f, phi, v, aVertex, aElement, c_=0, de
         # one is the sign of the assignment below.
         c[i] = -(phi[i] + mu * v[i])
 
-    phi, v = SolveLinearEquation(B, A, c,
-                                        alpha,
-                                        beta,
-                                        f)
+    phi, v = SolveLinearEquation(B, A, c, alpha, beta, f)
     #res = BoundarySolution(c_, density, k, phi, v)
     return v, phi
 
