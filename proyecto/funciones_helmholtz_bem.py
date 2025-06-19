@@ -513,7 +513,7 @@ def plot_edges_and_field(vertices, elementos, centros, f, cmap="magma"):
     ax.set_ylabel("y")
     ax.set_xlim(-1.0, 1.0)
     ax.set_ylim(- 1.0, 1.0)
-    ax.grid(True) 
+    #ax.grid(True) 
     #ax.grid(True)
 
     # Subplot 2: Campo escalar en centros
@@ -532,7 +532,7 @@ def plot_edges_and_field(vertices, elementos, centros, f, cmap="magma"):
     ax.set_ylabel("y")
     ax.set_xlim(-1.0, 1.0)
     ax.set_ylim(- 1.0, 1.0)
-    ax.grid(True)
+    #ax.grid(True)
  
     plt.savefig("edges_and_field.svg", dpi=150, bbox_inches='tight')
     plt.show()
