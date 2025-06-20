@@ -442,7 +442,7 @@ def generateInteriorPoints_excluding_circle(Nx=5, Ny=5, xmin=-2.0, xmax=2.0, ymi
     distance_squared = points[:, 0]**2 + points[:, 1]**2
 
     # Máscara de puntos fuera y dentro del círculo
-    mask_outside = distance_squared >= (r_exclude)**2
+    mask_outside = distance_squared >= r_exclude**2
     mask_inside  = ~mask_outside
 
     points_outside = points[mask_outside].astype(np.float32)
@@ -667,7 +667,7 @@ def plot_exact_displacement(X, Y, u_inc_amp, u_scn_amp, u_amp, u_inc_phase, u_sc
     plt.tight_layout()
 
     # Save the figure
-    plt.savefig("displacement_exact.svg", dpi=300, bbox_inches='tight')
+    #plt.savefig("figs/displacement_exact.pdf", dpi=300, bbox_inches='tight')
 
 
 def plot_bem_displacements(X, Y, u_inc_amp, u_scn_amp, u_amp, u_inc_phase, u_scn_phase, u_phase):
@@ -751,4 +751,4 @@ def plot_bem_displacements(X, Y, u_inc_amp, u_scn_amp, u_amp, u_inc_phase, u_scn
     plt.tight_layout()
 
     # Save the figure
-    plt.savefig("displacement_bem.svg", dpi=150, bbox_inches='tight')
+    plt.savefig("displacement.svg", dpi=150, bbox_inches='tight')
